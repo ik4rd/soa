@@ -1,0 +1,13 @@
+name: marketplace-hw1
+
+services:
+  orders:
+    build:
+      context: ./hw1/services/orders
+    ports:
+      - "127.0.0.1:${ORDERS_PORT:-8080}:8080"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
