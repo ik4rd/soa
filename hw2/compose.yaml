@@ -1,0 +1,55 @@
+name: marketplace-hw2
+services:
+  db:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: marketplace
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U marketplace]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  migrate:
+    image: redgate/flyway:11.8.2
+    environment:
+      REDGATE_DISABLE_TELEMETRY: "true"
+    command: -skipCheckForUpdate -url=jdbc:postgresql://db:5432/marketplace -user=marketplace -password=marketplace migrate
+    volumes:
+      - ./migrations:/flyway/sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      DATABASE_URL: postgresql://marketplace:marketplace@db:5432/marketplace
+      JWT_SECRET: ${JWT_SECRET:-hw2-local-secret-change-before-deployment-123456789}
+      ORDER_INTERVAL_MINUTES: ${ORDER_INTERVAL_MINUTES:-1}
+    ports:
+      - "127.0.0.1:${HW2_PORT:-8082}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  tests:
+    profiles: [test]
+    build:
+      context: .
+      target: tests
+    environment:
+      API_URL: http://api:8080
+      DATABASE_URL: postgresql://marketplace:marketplace@db:5432/marketplace
+      JWT_SECRET: ${JWT_SECRET:-hw2-local-secret-change-before-deployment-123456789}
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  postgres:

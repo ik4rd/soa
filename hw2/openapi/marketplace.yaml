@@ -1,0 +1,811 @@
+openapi: 3.0.3
+info:
+  {
+    title: Marketplace,
+    version: 2.0.0,
+    description: "Каталог, заказы и пользователи маркетплейса.",
+  }
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      summary: Регистрация
+      description: Публичный endpoint.
+      security: []
+      responses:
+        "201":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Register" }
+  /auth/login:
+    post:
+      operationId: login
+      summary: Вход
+      description: Публичный endpoint.
+      security: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tokens" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Login" }
+  /auth/refresh:
+    post:
+      operationId: refresh
+      summary: Обновление токенов
+      description: Публичный endpoint.
+      security: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tokens" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Refresh" }
+  /products:
+    post:
+      operationId: create_product
+      summary: Создание товара
+      description: "Доступ: SELLER, ADMIN."
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [SELLER, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductCreate" }
+    get:
+      operationId: list_products
+      summary: Список товаров
+      description: "Доступ: USER, SELLER, ADMIN."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, SELLER, ADMIN]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 2147483647, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ProductStatus" }
+        - name: category
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 100 }
+  /products/{id}:
+    get:
+      operationId: get_product
+      summary: Получение товара
+      description: "Доступ: USER, SELLER, ADMIN."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, SELLER, ADMIN]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+    put:
+      operationId: update_product
+      summary: Обновление товара
+      description: "Доступ: SELLER, ADMIN. SELLER изменяет только свои товары; ADMIN — любые."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [SELLER, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductUpdate" }
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+    delete:
+      operationId: delete_product
+      summary: Архивация товара
+      description: "Доступ: SELLER, ADMIN. Мягкое удаление: статус ARCHIVED. SELLER удаляет только свои товары; ADMIN — любые."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [SELLER, ADMIN]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+  /orders:
+    post:
+      operationId: create_order
+      summary: Создание заказа
+      description:
+        "Доступ: USER, ADMIN. Повторяющиеся product_id запрещены. Процентная скидка выше 70% не применяется (полная
+        цена)."
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "422": { $ref: "#/components/responses/Error422" }
+        "429": { $ref: "#/components/responses/Error429" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderCreate" }
+  /orders/{id}:
+    get:
+      operationId: get_order
+      summary: Получение заказа
+      description: "Доступ: USER, ADMIN. USER работает только со своими заказами; ADMIN — с любыми."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, ADMIN]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+    put:
+      operationId: update_order
+      summary: Обновление заказа
+      description: "Доступ: USER, ADMIN. USER работает только со своими заказами; ADMIN — с любыми."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "422": { $ref: "#/components/responses/Error422" }
+        "429": { $ref: "#/components/responses/Error429" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderUpdate" }
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+  /orders/{id}/cancel:
+    post:
+      operationId: cancel_order
+      summary: Отмена заказа
+      description: "Доступ: USER, ADMIN. USER работает только со своими заказами; ADMIN — с любыми."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [USER, ADMIN]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+  /orders/{id}/status:
+    post:
+      operationId: transition_order
+      summary: Переход состояния заказа
+      description: "Доступ: ADMIN. CREATED → PAYMENT_PENDING → PAID → SHIPPED → COMPLETED. Отмена вынесена в /cancel."
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderTransition" }
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+  /promo-codes:
+    post:
+      operationId: create_promo
+      summary: Создание промокода
+      description: "Доступ: SELLER, ADMIN."
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PromoResponse" }
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/RequestId" }
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "403": { $ref: "#/components/responses/Error403" }
+        "409": { $ref: "#/components/responses/Error409" }
+        "500": { $ref: "#/components/responses/Error500" }
+      x-roles: [SELLER, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromoCreate" }
+components:
+  schemas:
+    ProductStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, ARCHIVED]
+    OrderStatus:
+      type: string
+      enum: [CREATED, PAYMENT_PENDING, PAID, SHIPPED, COMPLETED, CANCELED]
+    Role:
+      type: string
+      enum: [USER, SELLER, ADMIN]
+    ProductCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 4000, nullable: true }
+        price:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0.01,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        stock: { type: integer, minimum: 0, maximum: 2147483647 }
+        category: { type: string, minLength: 1, maxLength: 100 }
+        status: { $ref: "#/components/schemas/ProductStatus" }
+      required: [name, price, stock, category, status]
+    ProductUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 4000, nullable: true }
+        price:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0.01,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        stock: { type: integer, minimum: 0, maximum: 2147483647 }
+        category: { type: string, minLength: 1, maxLength: 100 }
+        status: { $ref: "#/components/schemas/ProductStatus" }
+      required: [name, price, stock, category, status]
+    ProductResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 4000, nullable: true }
+        price:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0.01,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        stock: { type: integer, minimum: 0, maximum: 2147483647 }
+        category: { type: string, minLength: 1, maxLength: 100 }
+        status: { $ref: "#/components/schemas/ProductStatus" }
+        seller_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required:
+        [
+          id,
+          name,
+          description,
+          price,
+          stock,
+          category,
+          status,
+          seller_id,
+          created_at,
+          updated_at,
+        ]
+    ProductPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProductResponse" }
+        totalElements: { type: integer }
+        page: { type: integer }
+        size: { type: integer }
+      required: [items, totalElements, page, size]
+    OrderItem:
+      type: object
+      additionalProperties: false
+      properties:
+        product_id: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, maximum: 999 }
+      required: [product_id, quantity]
+    OrderCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/OrderItem" }
+        promo_code:
+          { type: string, pattern: "^[A-Z0-9_]{4,20}$", nullable: true }
+      required: [items]
+    OrderUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/OrderItem" }
+      required: [items]
+    OrderItemResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        product_id: { type: string, format: uuid }
+        quantity: { type: integer }
+        price_at_order:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+      required: [id, product_id, quantity, price_at_order]
+    OrderResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        promo_code_id: { type: string, format: uuid, nullable: true }
+        total_amount:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        discount_amount:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrderItemResponse" }
+      required:
+        [
+          id,
+          user_id,
+          status,
+          promo_code_id,
+          total_amount,
+          discount_amount,
+          created_at,
+          updated_at,
+          items,
+        ]
+    OrderTransition:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { $ref: "#/components/schemas/OrderStatus" }
+      required: [status]
+    PromoCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string, pattern: "^[A-Z0-9_]{4,20}$" }
+        discount_type:
+          type: string
+          enum: [PERCENTAGE, FIXED_AMOUNT]
+        discount_value:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0.01,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        min_order_amount:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        max_uses: { type: integer, minimum: 1, maximum: 2147483647 }
+        valid_from: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        active: { type: boolean, default: true }
+      required:
+        [
+          code,
+          discount_type,
+          discount_value,
+          min_order_amount,
+          max_uses,
+          valid_from,
+          valid_until,
+        ]
+    PromoResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: "^[A-Z0-9_]{4,20}$" }
+        discount_type:
+          type: string
+          enum: [PERCENTAGE, FIXED_AMOUNT]
+        discount_value:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0.01,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        min_order_amount:
+          {
+            type: number,
+            format: decimal,
+            minimum: 0,
+            maximum: 9999999999.99,
+            multipleOf: 0.01,
+          }
+        max_uses: { type: integer, minimum: 1, maximum: 2147483647 }
+        valid_from: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        active: { type: boolean, default: true }
+        current_uses: { type: integer }
+      required:
+        [
+          id,
+          code,
+          discount_type,
+          discount_value,
+          min_order_amount,
+          max_uses,
+          valid_from,
+          valid_until,
+          active,
+          current_uses,
+        ]
+    Register:
+      type: object
+      additionalProperties: false
+      properties:
+        username:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 100,
+            pattern: "^[a-zA-Z0-9_.-]+$",
+          }
+        password:
+          { type: string, minLength: 8, maxLength: 128, writeOnly: true }
+        role:
+          type: string
+          enum: [USER, SELLER]
+          default: USER
+      required: [username, password]
+    Login:
+      type: object
+      additionalProperties: false
+      properties:
+        username:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 100,
+            pattern: "^[a-zA-Z0-9_.-]+$",
+          }
+        password:
+          { type: string, minLength: 8, maxLength: 128, writeOnly: true }
+      required: [username, password]
+    UserResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+      required: [id, username, role]
+    Refresh:
+      type: object
+      additionalProperties: false
+      properties:
+        refresh_token: { type: string, minLength: 1, maxLength: 4096 }
+      required: [refresh_token]
+    Tokens:
+      type: object
+      additionalProperties: false
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type:
+          type: string
+          enum: [bearer]
+      required: [access_token, refresh_token, token_type]
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        error_code:
+          type: string
+          enum:
+            [
+              VALIDATION_ERROR,
+              TOKEN_EXPIRED,
+              TOKEN_INVALID,
+              REFRESH_TOKEN_INVALID,
+              ACCESS_DENIED,
+              ORDER_OWNERSHIP_VIOLATION,
+              PRODUCT_NOT_FOUND,
+              ORDER_NOT_FOUND,
+              NOT_FOUND,
+              METHOD_NOT_ALLOWED,
+              PRODUCT_INACTIVE,
+              ORDER_HAS_ACTIVE,
+              INVALID_STATE_TRANSITION,
+              INSUFFICIENT_STOCK,
+              USERNAME_TAKEN,
+              PROMO_CODE_EXISTS,
+              PROMO_CODE_INVALID,
+              PROMO_CODE_MIN_AMOUNT,
+              ORDER_LIMIT_EXCEEDED,
+              INTERNAL_ERROR,
+            ]
+        message: { type: string }
+        details: { type: object, additionalProperties: true, nullable: true }
+      required: [error_code, message]
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  responses:
+    Error400:
+      description: VALIDATION_ERROR
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error401:
+      description: TOKEN_EXPIRED, TOKEN_INVALID, REFRESH_TOKEN_INVALID
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error403:
+      description: ACCESS_DENIED, ORDER_OWNERSHIP_VIOLATION
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error404:
+      description: PRODUCT_NOT_FOUND, ORDER_NOT_FOUND, NOT_FOUND
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error405:
+      description: METHOD_NOT_ALLOWED
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error409:
+      description: PRODUCT_INACTIVE, ORDER_HAS_ACTIVE, INVALID_STATE_TRANSITION, INSUFFICIENT_STOCK, USERNAME_TAKEN, PROMO_CODE_EXISTS
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error422:
+      description: PROMO_CODE_INVALID, PROMO_CODE_MIN_AMOUNT
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error429:
+      description: ORDER_LIMIT_EXCEEDED
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+    Error500:
+      description: INTERNAL_ERROR
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/RequestId" }
+  headers:
+    RequestId:
+      description: UUID запроса, сформированный сервером.
+      schema: { type: string, format: uuid }
