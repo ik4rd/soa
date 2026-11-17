@@ -1,0 +1,32 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+!include <C4/C4_Container>
+LAYOUT_TOP_DOWN()
+title Notification Platform — критичный контур, RabbitMQ
+System_Ext(bank, "Сервисы банка", "События из outbox")
+System_Ext(profile, "Профиль клиента", "Контакты и настройки")
+System_Ext(channels, "Push / SMS / email", "Внешние провайдеры")
+System_Ext(client, "Приложение клиента", "Получение push и ACK")
+System_Boundary(platform, "Notification Platform") {
+  Container(api, "Notification API", "Go / HTTPS", "Приём, статусы и callback")
+  ContainerDb(db, "Журнал", "PostgreSQL", "Уведомления, попытки, outbox, сроки")
+  Container(relay, "Relay / Scheduler", "Go", "Outbox и просроченные задачи")
+  ContainerQueue(mq, "Критичные задания", "RabbitMQ quorum queues", "Транспорт с подтверждениями")
+  Container(worker, "Delivery Workers", "Go", "Автомат доставки и адаптеры каналов")
+  Container(bulk, "Массовый контур", "Go / RabbitMQ / PostgreSQL", "Свои БД, брокер, workers и квоты")
+}
+Rel(bank, api, "Передаёт событие / читает статус", "HTTPS")
+Rel(api, db, "Фиксирует приём и callback", "SQL")
+Rel(api, bulk, "Маршрутизирует некритичные сообщения", "HTTPS")
+Rel(relay, db, "Читает outbox и сроки", "SQL")
+Rel(relay, mq, "Публикует задания", "AMQP + confirm")
+Rel(worker, mq, "Получает задания, подтверждает обработку", "AMQP")
+Rel(worker, db, "Меняет состояния и попытки", "SQL")
+Rel(worker, profile, "Проверяет контакты и разрешения", "HTTPS")
+Rel(worker, channels, "Отправляет / сверяет результат", "HTTPS")
+Rel(channels, api, "Передаёт receipts", "HTTPS")
+Rel(channels, client, "Доставляет push", "Push transport")
+Rel(client, api, "Подтверждает сохранение push", "HTTPS")
+@enduml

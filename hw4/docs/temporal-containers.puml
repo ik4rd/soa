@@ -1,0 +1,34 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+!include <C4/C4_Container>
+LAYOUT_TOP_DOWN()
+title Notification Platform — критичный контур, Temporal
+System_Ext(bank, "Сервисы банка", "События из outbox")
+System_Ext(profile, "Профиль клиента", "Контакты и настройки")
+System_Ext(channels, "Push / SMS / email", "Внешние провайдеры")
+System_Ext(client, "Приложение клиента", "Получение push и ACK")
+System_Boundary(platform, "Notification Platform") {
+  Container(api, "Notification API", "Go / HTTPS", "Приём, статусы и callback")
+  ContainerDb(db, "Входной журнал", "PostgreSQL", "Дедупликация, start/signal outbox, проекция статуса")
+  Container(relay, "Starter / Signal Relay", "Go", "Надёжный запуск и передача callback")
+  Container(temporal, "Temporal Server", "Temporal", "История, task queues и таймеры")
+  ContainerDb(history, "Persistence", "PostgreSQL", "Состояние Temporal")
+  Container(worker, "Workflow / Activity Workers", "Go / Temporal SDK", "Политика и вызовы каналов")
+  Container(bulk, "Массовый контур", "Go / RabbitMQ / PostgreSQL", "Свои ресурсы и квоты")
+}
+Rel(bank, api, "Передаёт событие / читает статус", "HTTPS")
+Rel(api, db, "Сохраняет приём и callback", "SQL")
+Rel(api, bulk, "Маршрутизирует некритичные сообщения", "HTTPS")
+Rel(relay, db, "Читает start/signal outbox", "SQL")
+Rel(relay, temporal, "Запускает workflow / передаёт signal", "gRPC")
+Rel(temporal, history, "Сохраняет историю", "SQL")
+Rel(worker, temporal, "Получает задачи, возвращает результат", "gRPC")
+Rel(worker, db, "Читает данные, фиксирует попытки и итог", "SQL")
+Rel(worker, profile, "Проверяет контакты и разрешения", "HTTPS")
+Rel(worker, channels, "Отправляет / сверяет результат", "HTTPS")
+Rel(channels, api, "Передаёт receipts", "HTTPS")
+Rel(channels, client, "Доставляет push", "Push transport")
+Rel(client, api, "Подтверждает сохранение push", "HTTPS")
+@enduml

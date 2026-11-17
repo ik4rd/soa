@@ -1,0 +1,41 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+title RabbitMQ — push без подтверждения, резерв SMS
+participant "Relay / Scheduler" as Scheduler
+database PostgreSQL as DB
+queue RabbitMQ as MQ
+participant Worker
+participant "Push-провайдер" as Push
+participant "SMS-провайдер" as SMS
+participant API
+participant "Приложение" as App
+note over DB, Push: Push отправлен, но ACK отсутствует
+Scheduler -> DB: Выбрать next_action_at <= now с блокировкой
+Scheduler -> DB: Записать задание сверки в outbox
+Scheduler -> MQ: Опубликовать, дождаться confirm
+MQ -> Worker: Проверить попытку
+Worker -> Push: Найти результат по ключу
+Push --> Worker: Результат неизвестен
+note over Worker: Окно push 5 с истекло
+Worker -> DB: Блокировка: если нет delivered, создать SMS-попытку
+alt ACK уже зафиксирован
+  DB --> Worker: delivered, отправка не нужна
+else Нет подтверждения
+  DB --> Worker: attempt_id, lease
+  note over Worker: Проверить контакт, разрешение и квоту
+  Worker -> SMS: Send(стабильный ключ)
+  SMS --> Worker: Accepted
+  Worker -> DB: accepted, срок SMS 20 с
+  SMS -> API: Подписанный delivery receipt
+  API -> DB: Дедупликация callback; delivered
+  App -> API: Поздний push ACK
+  API -> DB: Учесть вторую доставку, не начинать новые попытки
+end
+Worker -> MQ: Manual ACK после commit
+note over Worker, SMS
+При потере ответа: сверка и тот же ключ.
+Уже отправленную SMS нельзя надёжно отозвать.
+end note
+@enduml
