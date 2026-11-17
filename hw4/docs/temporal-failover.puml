@@ -1,0 +1,45 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+title Temporal — push без подтверждения, резерв SMS
+participant "Temporal / Workflow" as WF
+participant "Activity Worker" as Worker
+participant "Push-провайдер" as Push
+participant "SMS-провайдер" as SMS
+participant API
+database "Журнал" as DB
+participant "Signal Relay" as Relay
+note over WF, Push: Push принят, ACK отсутствует
+WF -> WF: Durable timer: истекло окно push 5 с
+WF -> Worker: Activity: сверить push по ключу
+Worker -> Push: Get status
+Push --> Worker: Unknown
+Worker --> WF: Unknown
+alt Signal ACK уже обработан
+  WF -> WF: delivered, резерв не запускать
+else Нет подтверждения
+  WF -> Worker: Activity: отправить SMS
+  note over Worker: Проверить настройки, записать попытку
+  Worker -> SMS: Send(стабильный ключ)
+  SMS --> Worker: Accepted
+  Worker --> WF: accepted
+  WF -> WF: Durable timer: окно SMS 20 с
+  SMS -> API: Подписанный delivery receipt
+  API -> DB: BEGIN: callback + signal outbox; COMMIT
+  Relay -> DB: Прочитать signal outbox
+  Relay -> WF: Signal delivered(attempt_id, callback_id)
+  WF --> Relay: Signal принят
+  Relay -> DB: Отметить передачу
+  WF -> WF: Дедупликация; отменить таймер
+end
+WF -> Worker: Activity: сохранить delivered
+Worker -> DB: Идемпотентная запись результата
+Worker --> WF: Commit
+WF -> WF: Завершить workflow
+note over WF, SMS
+Перезапуск worker не теряет таймер.
+Повтор activity использует прежний ключ провайдера.
+Поздний ACK не отменяет уже начатую SMS.
+end note
+@enduml

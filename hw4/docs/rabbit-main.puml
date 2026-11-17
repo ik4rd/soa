@@ -1,0 +1,34 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+title RabbitMQ — основная доставка push
+actor "Сервис банка" as Bank
+participant API
+database PostgreSQL as DB
+participant "Relay / Scheduler" as Relay
+queue RabbitMQ as MQ
+participant Worker
+participant "Push-провайдер" as Push
+participant "Приложение" as App
+Bank -> API: Уведомление с ключом события
+API -> DB: BEGIN: notification + outbox; COMMIT
+DB --> API: Устойчивое сохранение
+API --> Bank: 202, notification_id
+Relay -> DB: Прочитать outbox
+Relay -> MQ: Опубликовать задание (mandatory)
+MQ --> Relay: Publisher confirm
+Relay -> DB: Отметить публикацию
+MQ -> Worker: Задание (at least once)
+Worker -> DB: Проверить версию; создать попытку и lease
+note over Worker: Проверить контакты и настройки
+Worker -> Push: Send(attempt_id, notification_id)
+Push --> Worker: Accepted, provider_id
+Worker -> DB: Сохранить accepted и срок ожидания
+Worker -> MQ: Manual ACK
+Push -> App: Push(notification_id)
+App -> App: Сохранить ID, показать один раз
+App -> API: ACK(notification_id)
+API -> DB: Проверить владельца; delivered, отменить будущие попытки
+note over API, DB: Поздний accepted не перезаписывает delivered
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+title Temporal — основная доставка push
+actor "Сервис банка" as Bank
+participant API
+database "Журнал" as DB
+participant "Starter / Signal Relay" as Relay
+participant "Temporal / Workflow" as WF
+participant "Activity Worker" as Worker
+participant "Push-провайдер" as Push
+participant "Приложение" as App
+Bank -> API: Уведомление с ключом события
+API -> DB: BEGIN: notification + start outbox; COMMIT
+API --> Bank: 202, notification_id
+Relay -> DB: Прочитать start outbox
+Relay -> WF: Start(workflow_id = notification_id)
+WF --> Relay: Started / already exists
+Relay -> DB: Отметить запуск
+WF -> Worker: Activity: отправить push
+note over Worker: Проверить настройки; сохранить попытку
+Worker -> Push: Send(стабильный ключ)
+Push --> Worker: Accepted
+Worker --> WF: accepted, attempt_id
+WF -> WF: Durable timer до конца окна 5 с
+Push -> App: Push(notification_id)
+App -> App: Сохранить ID, показать один раз
+App -> API: ACK
+API -> DB: BEGIN: callback + signal outbox; COMMIT
+Relay -> DB: Прочитать signal outbox
+Relay -> WF: Signal ACK (повторы допустимы)
+WF --> Relay: Signal принят
+Relay -> DB: Отметить передачу
+WF -> WF: Дедупликация, delivered; отменить таймер
+WF -> Worker: Activity: сохранить итог
+Worker -> DB: Идемпотентно записать delivered
+Worker --> WF: Commit
+WF -> WF: Завершить workflow
+@enduml
